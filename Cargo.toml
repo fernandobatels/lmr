@@ -1,0 +1,13 @@
+[package]
+name = "smrtool"
+version = "0.1.0"
+edition = "2021"
+authors = ["Luis Fernando Batels <luisfbatels@gmail.com>"]
+description = "Simple email report tool"
+repository = "https://github.com/fernandobatels/smrtool"
+keywords = ["mail", "report"]
+categories = []
+license = "MIT"
+readme = "README.md"
+
+[dependencies]

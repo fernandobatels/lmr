@@ -1,6 +1,6 @@
-# smrtool - Simple email report tool
+# lmr - Lightweight email report tool
 
-A simple tool for fetch query as reports from a database and send to email
+A simple and fast tool for fetch query as reports from a database and send to email
 
 ## TODO:
 - Fetch from
@@ -8,7 +8,8 @@ A simple tool for fetch query as reports from a database and send to email
     - [ ] postgresql
     - [ ] firebird
     - [ ] mssql
-- [X] settings file
+- Settings
+    - [X] file
 - Generate as
     - [ ] html
     - [ ] txt

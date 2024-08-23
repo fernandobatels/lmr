@@ -1,10 +1,10 @@
 [package]
-name = "smrtool"
+name = "lmr"
 version = "0.1.0"
 edition = "2021"
 authors = ["Luis Fernando Batels <luisfbatels@gmail.com>"]
-description = "Simple email report tool"
-repository = "https://github.com/fernandobatels/smrtool"
+description = "Lightweight email report tool"
+repository = "https://github.com/fernandobatels/lmr"
 keywords = ["mail", "report"]
 categories = []
 license = "MIT"

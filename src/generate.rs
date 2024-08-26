@@ -2,5 +2,5 @@
 
 pub struct DataExported {
     pub is_html: bool,
-    pub content: String
+    pub content: String,
 }

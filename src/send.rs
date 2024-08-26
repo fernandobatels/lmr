@@ -1,14 +1,13 @@
 //! Send/Output api
 
-use mail_send::SmtpClientBuilder;
 use mail_builder::MessageBuilder;
+use mail_send::SmtpClientBuilder;
 
 use crate::config::ConfigMail;
 use crate::generate::DataExported;
 
 /// Send the exported data to STDOUT
 pub async fn to_stdout(dt: &DataExported) -> Result<(), String> {
-
     println!("{}", dt.content);
 
     Ok(())
@@ -16,11 +15,10 @@ pub async fn to_stdout(dt: &DataExported) -> Result<(), String> {
 
 /// Send the exported data to email
 pub async fn to_mail(config: ConfigMail, dt: &DataExported) -> Result<(), String> {
-
     let mb = MessageBuilder::new()
-            .from(("smrtool".to_string(), config.from))
-            .to(config.to)
-            .subject(config.subject);
+        .from(("smrtool".to_string(), config.from))
+        .to(config.to)
+        .subject(config.subject);
 
     let message = if dt.is_html {
         mb.html_body(dt.content.clone())

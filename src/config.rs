@@ -5,14 +5,14 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Config {
-    pub send: ConfigSend
+    pub send: ConfigSend,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct ConfigSend {
     pub mail: Option<ConfigMail>,
     #[serde(default)]
-    pub stdout: bool
+    pub stdout: bool,
 }
 
 /// Smtp confs
@@ -24,5 +24,5 @@ pub struct ConfigMail {
     pub subject: String,
     pub port: u16,
     pub user: String,
-    pub pass: String
+    pub pass: String,
 }

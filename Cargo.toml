@@ -11,9 +11,12 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-argopt = { version = "0.3.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.19"
 mail-send = "0.4.9"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 mail-builder = "0.3.2"
+log = "0.4.22"
+simplelog = "0.12.2"
+clap = { version = "4.5.16", features = ["derive"] }
+clap-verbosity-flag = "2.2.1"

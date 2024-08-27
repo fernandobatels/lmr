@@ -1,13 +1,14 @@
 /// lmr - Lightweight email report tool
 use clap::Parser;
+use clap_verbosity_flag::{InfoLevel, Verbosity};
 use log::*;
 use simplelog::*;
 use std::fs;
-use clap_verbosity_flag::{Verbosity, InfoLevel};
 
 mod config;
 mod generate;
 mod send;
+mod source;
 
 use config::Config;
 
@@ -28,9 +29,7 @@ async fn main() -> Result<(), String> {
 
     TermLogger::init(
         args.verbose.log_level_filter(),
-        ConfigBuilder::new()
-            .set_time_format_rfc3339()
-            .build(),
+        ConfigBuilder::new().set_time_format_rfc3339().build(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
     )
@@ -45,6 +44,8 @@ async fn main() -> Result<(), String> {
 
     let config = serde_yaml::from_str::<Config>(&sconfig)
         .map_err(|e| format!("Config file not parsed: {}", e.to_string()))?;
+
+    let data = source::fetch(config.source).await?;
 
     let data = generate::DataExported {
         is_html: false,

@@ -5,7 +5,20 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Config {
+    pub source: ConfigSource,
     pub send: ConfigSend,
+}
+
+/// Source setup
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct ConfigSource {
+    pub kind: SourceType,
+    pub conn: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub enum SourceType {
+    Sqlite,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]

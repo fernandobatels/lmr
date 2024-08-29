@@ -1,5 +1,6 @@
 //! Field/Value api
 
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
 use serde::Deserialize;
 
 /// Raw value from an data source row
@@ -14,6 +15,9 @@ pub enum TypedValue {
     String(Option<String>),
     Integer(Option<i64>),
     Float(Option<f64>),
+    Time(Option<NaiveTime>),
+    Date(Option<NaiveDate>),
+    DateTime(Option<DateTime<FixedOffset>>),
 }
 
 /// Field definition
@@ -29,4 +33,7 @@ pub enum FieldType {
     String,
     Integer,
     Float,
+    Time,
+    Date,
+    DateTime,
 }

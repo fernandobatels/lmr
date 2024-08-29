@@ -1,7 +1,8 @@
 //! Sqlite driver implementation
 use super::{Driver, Query, QueryResult};
 use crate::value::{FieldType, TypedValue, Value};
-use sqlite::{self, Connection, State};
+use chrono::{DateTime, NaiveDate, NaiveTime};
+use sqlite::{self, Connection, Error, State};
 
 pub struct SqliteDriver {
     pub conn: Option<Connection>,
@@ -39,43 +40,72 @@ impl Driver for SqliteDriver {
             let mut row = vec![];
 
             for col in &query.fields {
+                let efmt = |e: Error| {
+                    format!(
+                        "Read column {} row {} failed: {}",
+                        col.field,
+                        row.len(),
+                        e.to_string()
+                    )
+                };
                 let inner = match &col.kind {
                     FieldType::Integer => TypedValue::Integer(
                         statement
                             .read::<Option<i64>, _>(col.field.as_str())
-                            .map_err(|e| {
-                                format!(
-                                    "Read column {} row {} failed: {}",
-                                    col.field,
-                                    row.len(),
-                                    e.to_string()
-                                )
-                            })?,
+                            .map_err(efmt)?,
                     ),
                     FieldType::String => TypedValue::String(
                         statement
                             .read::<Option<String>, _>(col.field.as_str())
-                            .map_err(|e| {
-                                format!(
-                                    "Read column {} row {} failed: {}",
-                                    col.field,
-                                    row.len(),
-                                    e.to_string()
-                                )
-                            })?,
+                            .map_err(efmt)?,
                     ),
                     FieldType::Float => TypedValue::Float(
                         statement
                             .read::<Option<f64>, _>(col.field.as_str())
-                            .map_err(|e| {
-                                format!(
-                                    "Read column {} row {} failed: {}",
-                                    col.field,
-                                    row.len(),
-                                    e.to_string()
-                                )
-                            })?,
+                            .map_err(efmt)?,
                     ),
+                    FieldType::Time => TypedValue::Time({
+                        let raw = statement
+                            .read::<Option<String>, _>(col.field.as_str())
+                            .map_err(efmt)?;
+                        if let Some(raw) = raw {
+                            let dt = NaiveTime::parse_from_str(&raw, "%H:%M:%S").map_err(|e| {
+                                format!("Error on parse the {} to time: {}", raw, e.to_string())
+                            })?;
+
+                            Some(dt)
+                        } else {
+                            None
+                        }
+                    }),
+                    FieldType::Date => TypedValue::Date({
+                        let raw = statement
+                            .read::<Option<String>, _>(col.field.as_str())
+                            .map_err(efmt)?;
+                        if let Some(raw) = raw {
+                            let dt = NaiveDate::parse_from_str(&raw, "%Y-%m-%d").map_err(|e| {
+                                format!("Error on parse the {} to date: {}", raw, e.to_string())
+                            })?;
+
+                            Some(dt)
+                        } else {
+                            None
+                        }
+                    }),
+                    FieldType::DateTime => TypedValue::DateTime({
+                        let raw = statement
+                            .read::<Option<String>, _>(col.field.as_str())
+                            .map_err(efmt)?;
+                        if let Some(raw) = raw {
+                            let dt = DateTime::parse_from_rfc3339(&raw).map_err(|e| {
+                                format!("Error on parse the {} to datetime: {}", raw, e.to_string())
+                            })?;
+
+                            Some(dt)
+                        } else {
+                            None
+                        }
+                    }),
                 };
 
                 row.push(Value {
@@ -93,6 +123,8 @@ impl Driver for SqliteDriver {
 
 #[cfg(test)]
 pub mod tests {
+    use chrono::{FixedOffset, NaiveDate, NaiveTime, TimeZone};
+
     use crate::{
         source::{sqlite::SqliteDriver, Driver, Query},
         value::{Field, FieldType, TypedValue},
@@ -104,9 +136,9 @@ pub mod tests {
         driver.connect(":memory:".to_string()).await?;
 
         let query = "
-                CREATE TABLE test (a TEXT, b INTEGER, c REAL);
-                INSERT INTO test VALUES (null, null, null);
-                INSERT INTO test VALUES ('Olá mundo', 2024, 123.45);
+                CREATE TABLE test (a TEXT, b INTEGER, c REAL, d TEXT, e TEXT, f TEXT);
+                INSERT INTO test VALUES (null, null, null, null, null, null);
+                INSERT INTO test VALUES ('Olá mundo', 2024, 123.45, '23:55:19', '2024-05-15', '1996-12-19T16:39:57-08:00');
             ";
         driver.conn.as_ref().unwrap().execute(query).unwrap();
 
@@ -129,6 +161,21 @@ pub mod tests {
                     field: "c".to_string(),
                     kind: FieldType::Float,
                 },
+                Field {
+                    title: "d".to_string(),
+                    field: "d".to_string(),
+                    kind: FieldType::Time,
+                },
+                Field {
+                    title: "e".to_string(),
+                    field: "e".to_string(),
+                    kind: FieldType::Date,
+                },
+                Field {
+                    title: "f".to_string(),
+                    field: "f".to_string(),
+                    kind: FieldType::DateTime,
+                },
             ],
         };
 
@@ -139,11 +186,33 @@ pub mod tests {
         assert_eq!(TypedValue::String(None), row[0].inner);
         assert_eq!(TypedValue::Integer(None), row[1].inner);
         assert_eq!(TypedValue::Float(None), row[2].inner);
+        assert_eq!(TypedValue::Time(None), row[3].inner);
+        assert_eq!(TypedValue::Date(None), row[4].inner);
+        assert_eq!(TypedValue::DateTime(None), row[5].inner);
 
         let row = &result.values[1];
-        assert_eq!(TypedValue::String(Some("Olá mundo".to_string())), row[0].inner);
+        assert_eq!(
+            TypedValue::String(Some("Olá mundo".to_string())),
+            row[0].inner
+        );
         assert_eq!(TypedValue::Integer(Some(2024)), row[1].inner);
         assert_eq!(TypedValue::Float(Some(123.45)), row[2].inner);
+        assert_eq!(
+            TypedValue::Time(Some(NaiveTime::from_hms(23, 55, 19))),
+            row[3].inner
+        );
+        assert_eq!(
+            TypedValue::Date(Some(NaiveDate::from_ymd(2024, 05, 15))),
+            row[4].inner
+        );
+        assert_eq!(
+            TypedValue::DateTime(Some(
+                FixedOffset::west(8 * 3600)
+                    .with_ymd_and_hms(1996, 12, 19, 16, 39, 57)
+                    .unwrap()
+            )),
+            row[5].inner
+        );
 
         Ok(())
     }

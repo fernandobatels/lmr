@@ -9,6 +9,7 @@ mod config;
 mod generate;
 mod send;
 mod source;
+mod value;
 
 use config::Config;
 
@@ -45,7 +46,7 @@ async fn main() -> Result<(), String> {
     let config = serde_yaml::from_str::<Config>(&sconfig)
         .map_err(|e| format!("Config file not parsed: {}", e.to_string()))?;
 
-    let data = source::fetch(config.source).await?;
+    //let data = source::fetch(config.source).await?;
 
     let data = generate::DataExported {
         is_html: false,

@@ -4,7 +4,7 @@ A simple and fast tool for fetch query as reports from a database and send to em
 
 ## TODO:
 - Fetch from
-    - [ ] sqlite
+    - [x] sqlite
     - [ ] postgresql
     - [ ] firebird
     - [ ] mssql

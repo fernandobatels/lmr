@@ -19,17 +19,13 @@ pub struct Query {
     pub fields: Vec<Field>,
 }
 
-pub struct QueryResult {
-    pub values: Vec<Vec<Value>>,
-}
-
 /// Data source driver definitions
 pub trait Driver {
     // Establish the connection and prepare for fetch
     async fn connect(&mut self, conn: String) -> Result<(), String>;
 
     // Query and fetch the data
-    async fn fetch(&mut self, query: Query) -> Result<QueryResult, String>;
+    async fn fetch(&mut self, query: Query) -> Result<Vec<Vec<Value>>, String>;
 }
 
 /// Setup the driver of specified kind
@@ -46,7 +42,7 @@ fn get_driver(kind: SourceType) -> Result<impl Driver, String> {
 pub async fn fetch(
     source: ConfigSource,
     querys: Vec<Query>,
-) -> Result<Vec<(Query, QueryResult)>, String> {
+) -> Result<Vec<(Query, Result<Vec<Vec<Value>>, String>)>, String> {
     let mut driver = get_driver(source.kind)?;
 
     info!("Connecting on database");
@@ -60,7 +56,7 @@ pub async fn fetch(
     for query in querys {
         info!("Fetching '{}' query", query.title);
 
-        let result = driver.fetch(query.clone()).await?;
+        let result = driver.fetch(query.clone()).await;
 
         r.push((query, result));
     }
@@ -119,19 +115,85 @@ pub mod tests {
 
         let (rquery, result) = &results[0];
         assert_eq!(query.clone(), rquery.clone());
-        assert_eq!(2, result.values.len());
+        assert_eq!(None, result.as_ref().err());
+        let result = result.clone().unwrap();
+        assert_eq!(2, result.len());
 
-        let row = &result.values[0];
+        let row = &result[0];
         assert_eq!(query.fields[0], row[0].field);
         assert_eq!(TypedValue::String(Some("Alice".to_string())), row[0].inner);
         assert_eq!(query.fields[1], row[1].field);
         assert_eq!(TypedValue::Integer(Some(42)), row[1].inner);
 
-        let row = &result.values[1];
+        let row = &result[1];
         assert_eq!(query.fields[0], row[0].field);
         assert_eq!(TypedValue::String(Some("Bob".to_string())), row[0].inner);
         assert_eq!(query.fields[1], row[1].field);
         assert_eq!(TypedValue::Integer(Some(69)), row[1].inner);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fetch_with_failed_query() -> Result<(), String> {
+        let query = "
+            drop table if exists users;
+            CREATE TABLE users (name TEXT, age INTEGER);
+            INSERT INTO users VALUES ('Alice', 42);
+            INSERT INTO users VALUES ('Bob', 69);
+        ";
+        sqlite::Connection::open_with_flags(
+            "/tmp/test-lmr2.db",
+            sqlite::OpenFlags::new().with_create().with_read_write(),
+        )
+        .unwrap()
+        .execute(query)
+        .unwrap();
+
+        let source = ConfigSource {
+            conn: "/tmp/test-lmr2.db".to_string(),
+            kind: SourceType::Sqlite,
+        };
+
+        let query1 = Query {
+            title: "Test".to_string(),
+            sql: "select * from users".to_string(),
+            fields: vec![Field {
+                title: "User name".to_string(),
+                field: "name".to_string(),
+                kind: FieldType::String,
+            }],
+        };
+
+        let query2 = Query {
+            title: "Test 2".to_string(),
+            sql: "select * from tusers".to_string(),
+            fields: vec![Field {
+                title: "User name".to_string(),
+                field: "name".to_string(),
+                kind: FieldType::String,
+            }],
+        };
+
+        let querys = vec![query1.clone(), query2.clone(), query1.clone()];
+
+        let results = super::fetch(source, querys).await?;
+        assert_eq!(3, results.len());
+
+        let (rquery, result) = &results[0];
+        assert_eq!(query1.clone(), rquery.clone());
+        assert_eq!(None, result.as_ref().err());
+
+        let (rquery, result) = &results[1];
+        assert_eq!(query2.clone(), rquery.clone());
+        assert_eq!(
+            Some("Prepare statement failed: no such table: tusers (code 1)".to_string()),
+            result.clone().err()
+        );
+
+        let (rquery, result) = &results[2];
+        assert_eq!(query1.clone(), rquery.clone());
+        assert_eq!(None, result.as_ref().err());
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 //! Sqlite driver implementation
-use super::{Driver, Query, QueryResult};
+use super::{Driver, Query};
 use crate::value::{FieldType, TypedValue, Value};
 use chrono::{DateTime, NaiveDate, NaiveTime};
 use sqlite::{self, Connection, Error, State};
@@ -24,7 +24,7 @@ impl Driver for SqliteDriver {
         Ok(())
     }
 
-    async fn fetch(&mut self, query: Query) -> Result<QueryResult, String> {
+    async fn fetch(&mut self, query: Query) -> Result<Vec<Vec<Value>>, String> {
         let conn = self
             .conn
             .as_ref()
@@ -117,7 +117,7 @@ impl Driver for SqliteDriver {
             values.push(row);
         }
 
-        Ok(QueryResult { values })
+        Ok(values)
     }
 }
 
@@ -180,9 +180,9 @@ pub mod tests {
         };
 
         let result = driver.fetch(query.clone()).await?;
-        assert_eq!(2, result.values.len());
+        assert_eq!(2, result.len());
 
-        let row = &result.values[0];
+        let row = &result[0];
         assert_eq!(TypedValue::String(None), row[0].inner);
         assert_eq!(TypedValue::Integer(None), row[1].inner);
         assert_eq!(TypedValue::Float(None), row[2].inner);
@@ -190,7 +190,7 @@ pub mod tests {
         assert_eq!(TypedValue::Date(None), row[4].inner);
         assert_eq!(TypedValue::DateTime(None), row[5].inner);
 
-        let row = &result.values[1];
+        let row = &result[1];
         assert_eq!(
             TypedValue::String(Some("Olá mundo".to_string())),
             row[0].inner

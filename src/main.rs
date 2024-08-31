@@ -6,7 +6,7 @@ use simplelog::*;
 use std::fs;
 
 mod config;
-mod generate;
+mod presentation;
 mod send;
 mod source;
 mod value;
@@ -48,7 +48,7 @@ async fn main() -> Result<(), String> {
 
     //let data = source::fetch(config.source).await?;
 
-    let data = generate::DataExported {
+    let data = presentation::DataPresented {
         is_html: false,
         content: "?????".to_string(),
     };

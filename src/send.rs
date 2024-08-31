@@ -4,17 +4,17 @@ use mail_builder::MessageBuilder;
 use mail_send::SmtpClientBuilder;
 
 use crate::config::ConfigMail;
-use crate::generate::DataExported;
+use crate::presentation::DataPresented;
 
 /// Send the exported data to STDOUT
-pub async fn to_stdout(dt: &DataExported) -> Result<(), String> {
+pub async fn to_stdout(dt: &DataPresented) -> Result<(), String> {
     println!("{}", dt.content);
 
     Ok(())
 }
 
 /// Send the exported data to email
-pub async fn to_mail(config: ConfigMail, dt: &DataExported) -> Result<(), String> {
+pub async fn to_mail(config: ConfigMail, dt: &DataPresented) -> Result<(), String> {
     let mb = MessageBuilder::new()
         .from(("smrtool".to_string(), config.from))
         .to(config.to)

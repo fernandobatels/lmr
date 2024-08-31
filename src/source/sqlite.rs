@@ -49,22 +49,19 @@ impl Driver for SqliteDriver {
                     )
                 };
                 let inner = match &col.kind {
-                    FieldType::Integer => TypedValue::Integer(
-                        statement
-                            .read::<Option<i64>, _>(col.field.as_str())
-                            .map_err(efmt)?,
-                    ),
-                    FieldType::String => TypedValue::String(
-                        statement
-                            .read::<Option<String>, _>(col.field.as_str())
-                            .map_err(efmt)?,
-                    ),
-                    FieldType::Float => TypedValue::Float(
-                        statement
-                            .read::<Option<f64>, _>(col.field.as_str())
-                            .map_err(efmt)?,
-                    ),
-                    FieldType::Time => TypedValue::Time({
+                    FieldType::Integer => statement
+                        .read::<Option<i64>, _>(col.field.as_str())
+                        .map_err(efmt)?
+                        .map(|v| TypedValue::Integer(v)),
+                    FieldType::String => statement
+                        .read::<Option<String>, _>(col.field.as_str())
+                        .map_err(efmt)?
+                        .map(|v| TypedValue::String(v)),
+                    FieldType::Float => statement
+                        .read::<Option<f64>, _>(col.field.as_str())
+                        .map_err(efmt)?
+                        .map(|v| TypedValue::Float(v)),
+                    FieldType::Time => {
                         let raw = statement
                             .read::<Option<String>, _>(col.field.as_str())
                             .map_err(efmt)?;
@@ -73,12 +70,12 @@ impl Driver for SqliteDriver {
                                 format!("Error on parse the {} to time: {}", raw, e.to_string())
                             })?;
 
-                            Some(dt)
+                            Some(TypedValue::Time(dt))
                         } else {
                             None
                         }
-                    }),
-                    FieldType::Date => TypedValue::Date({
+                    }
+                    FieldType::Date => {
                         let raw = statement
                             .read::<Option<String>, _>(col.field.as_str())
                             .map_err(efmt)?;
@@ -87,12 +84,12 @@ impl Driver for SqliteDriver {
                                 format!("Error on parse the {} to date: {}", raw, e.to_string())
                             })?;
 
-                            Some(dt)
+                            Some(TypedValue::Date(dt))
                         } else {
                             None
                         }
-                    }),
-                    FieldType::DateTime => TypedValue::DateTime({
+                    }
+                    FieldType::DateTime => {
                         let raw = statement
                             .read::<Option<String>, _>(col.field.as_str())
                             .map_err(efmt)?;
@@ -101,11 +98,11 @@ impl Driver for SqliteDriver {
                                 format!("Error on parse the {} to datetime: {}", raw, e.to_string())
                             })?;
 
-                            Some(dt)
+                            Some(TypedValue::DateTime(dt))
                         } else {
                             None
                         }
-                    }),
+                    }
                 };
 
                 row.push(Value {
@@ -183,30 +180,30 @@ pub mod tests {
         assert_eq!(2, result.len());
 
         let row = &result[0];
-        assert_eq!(TypedValue::String(None), row[0].inner);
-        assert_eq!(TypedValue::Integer(None), row[1].inner);
-        assert_eq!(TypedValue::Float(None), row[2].inner);
-        assert_eq!(TypedValue::Time(None), row[3].inner);
-        assert_eq!(TypedValue::Date(None), row[4].inner);
-        assert_eq!(TypedValue::DateTime(None), row[5].inner);
+        assert_eq!(None, row[0].inner);
+        assert_eq!(None, row[1].inner);
+        assert_eq!(None, row[2].inner);
+        assert_eq!(None, row[3].inner);
+        assert_eq!(None, row[4].inner);
+        assert_eq!(None, row[5].inner);
 
         let row = &result[1];
         assert_eq!(
-            TypedValue::String(Some("Olá mundo".to_string())),
+            Some(TypedValue::String("Olá mundo".to_string())),
             row[0].inner
         );
-        assert_eq!(TypedValue::Integer(Some(2024)), row[1].inner);
-        assert_eq!(TypedValue::Float(Some(123.45)), row[2].inner);
+        assert_eq!(Some(TypedValue::Integer(2024)), row[1].inner);
+        assert_eq!(Some(TypedValue::Float(123.45)), row[2].inner);
         assert_eq!(
-            TypedValue::Time(Some(NaiveTime::from_hms(23, 55, 19))),
+            Some(TypedValue::Time(NaiveTime::from_hms(23, 55, 19))),
             row[3].inner
         );
         assert_eq!(
-            TypedValue::Date(Some(NaiveDate::from_ymd(2024, 05, 15))),
+            Some(TypedValue::Date(NaiveDate::from_ymd(2024, 05, 15))),
             row[4].inner
         );
         assert_eq!(
-            TypedValue::DateTime(Some(
+            Some(TypedValue::DateTime(
                 FixedOffset::west(8 * 3600)
                     .with_ymd_and_hms(1996, 12, 19, 16, 39, 57)
                     .unwrap()

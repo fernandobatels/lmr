@@ -121,15 +121,15 @@ pub mod tests {
 
         let row = &result[0];
         assert_eq!(query.fields[0], row[0].field);
-        assert_eq!(TypedValue::String(Some("Alice".to_string())), row[0].inner);
+        assert_eq!(Some(TypedValue::String("Alice".to_string())), row[0].inner);
         assert_eq!(query.fields[1], row[1].field);
-        assert_eq!(TypedValue::Integer(Some(42)), row[1].inner);
+        assert_eq!(Some(TypedValue::Integer(42)), row[1].inner);
 
         let row = &result[1];
         assert_eq!(query.fields[0], row[0].field);
-        assert_eq!(TypedValue::String(Some("Bob".to_string())), row[0].inner);
+        assert_eq!(Some(TypedValue::String("Bob".to_string())), row[0].inner);
         assert_eq!(query.fields[1], row[1].field);
-        assert_eq!(TypedValue::Integer(Some(69)), row[1].inner);
+        assert_eq!(Some(TypedValue::Integer(69)), row[1].inner);
 
         Ok(())
     }

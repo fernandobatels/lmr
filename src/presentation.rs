@@ -20,6 +20,32 @@ pub enum OutputFormat {
     Plain,
 }
 
+impl OutputFormat {
+    pub fn title1(&self, title: &str) -> String {
+        match self {
+            OutputFormat::Plain => format!("\n{}\n\n", title),
+        }
+    }
+
+    pub fn title2(&self, title: &str) -> String {
+        match self {
+            OutputFormat::Plain => format!("{}\n\n", title),
+        }
+    }
+
+    pub fn simple(&self, content: &str) -> String {
+        match self {
+            OutputFormat::Plain => format!("{}\n", content),
+        }
+    }
+
+    pub fn break_line(&self) -> String {
+        match self {
+            OutputFormat::Plain => format!("\n"),
+        }
+    }
+}
+
 impl Default for OutputFormat {
     fn default() -> Self {
         OutputFormat::Plain
@@ -35,18 +61,20 @@ pub fn present_as(
 
     let mut r = String::new();
 
-    r.push_str(&format!("\nThe results of your query are here!\n\n"));
+    r.push_str(&format.title1("The results of your query are here!"));
 
     for (query, result) in data {
-        r.push_str("\n");
+        r.push_str(&format.break_line());
 
         let rquery = present_query_as(query, result, format.clone())?;
         r.push_str(&rquery);
-        r.push_str("\n");
-        r.push_str("\n");
+        r.push_str(&format.break_line());
+        r.push_str(&format.break_line());
     }
 
-    r.push_str(&"Consider support the project at https://github.com/fernandobatels/lmr\n");
+    r.push_str(
+        &format.simple("Consider support the project at https://github.com/fernandobatels/lmr"),
+    );
 
     Ok(DataPresented {
         is_html: false,
@@ -64,7 +92,7 @@ pub fn present_query_as(
 
     let mut r = String::new();
 
-    r.push_str(&format!("Query: {}\n\n", query.title));
+    r.push_str(&format.title2(&format!("Query: {}", query.title)));
 
     if let Ok(rows) = data {
         if rows.len() > 0 {
@@ -93,12 +121,12 @@ pub fn present_query_as(
 
             let table = btable.build().with(Style::ascii()).to_string();
 
-            r.push_str(&format!("{}\n", table));
+            r.push_str(&format.simple(&format!("{}", table)));
         } else {
-            r.push_str("Empty result\n");
+            r.push_str(&format.simple("Empty result"));
         }
     } else {
-        r.push_str(&format!("Query falied: {}\n", data.err().unwrap()));
+        r.push_str(&format.simple(&format!("Query falied: {}", data.err().unwrap())));
     }
 
     Ok(r)

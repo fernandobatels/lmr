@@ -46,6 +46,8 @@ pub fn present_as(
         r.push_str("\n");
     }
 
+    r.push_str(&"Consider support the project at https://github.com/fernandobatels/lmr\n");
+
     Ok(DataPresented {
         is_html: false,
         content: r,
@@ -188,6 +190,7 @@ Query: Title test
 +-----------+-----+
 
 
+Consider support the project at https://github.com/fernandobatels/lmr
 "#
                 .to_string()
             },
@@ -232,6 +235,7 @@ Query: Title test
 Query falied: Table 'users' not found
 
 
+Consider support the project at https://github.com/fernandobatels/lmr
 "#
                 .to_string()
             },
@@ -276,6 +280,7 @@ Query: Title test
 Empty result
 
 
+Consider support the project at https://github.com/fernandobatels/lmr
 "#
                 .to_string()
             },

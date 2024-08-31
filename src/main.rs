@@ -46,19 +46,16 @@ async fn main() -> Result<(), String> {
     let config = serde_yaml::from_str::<Config>(&sconfig)
         .map_err(|e| format!("Config file not parsed: {}", e.to_string()))?;
 
-    //let data = source::fetch(config.source).await?;
+    let data = source::fetch(config.source, config.querys).await?;
 
-    let data = presentation::DataPresented {
-        is_html: false,
-        content: "?????".to_string(),
-    };
+    let content = presentation::present_as(data, config.send.format)?;
 
     if config.send.stdout {
-        send::to_stdout(&data).await?;
+        send::to_stdout(&content).await?;
     }
 
     if let Some(set) = config.send.mail {
-        send::to_mail(set, &data).await?;
+        send::to_mail(set, &content).await?;
     }
 
     Ok(())

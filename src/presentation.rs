@@ -1,6 +1,6 @@
 //! Export/Presentation api
 
-use chrono::format;
+use log::*;
 use serde::Deserialize;
 use tabled::{builder::Builder, settings::Style};
 
@@ -20,11 +20,19 @@ pub enum OutputFormat {
     Plain,
 }
 
+impl Default for OutputFormat {
+    fn default() -> Self {
+        OutputFormat::Plain
+    }
+}
+
 /// Export the querys results into specified format
 pub fn present_as(
     data: Vec<(Query, Result<Vec<Vec<Value>>, String>)>,
     format: OutputFormat,
 ) -> Result<DataPresented, String> {
+    info!("Generating the presentation");
+
     let mut r = String::new();
 
     r.push_str(&format!("\nThe results of your query are here!\n\n"));
@@ -50,6 +58,8 @@ pub fn present_query_as(
     data: Result<Vec<Vec<Value>>, String>,
     format: OutputFormat,
 ) -> Result<String, String> {
+    debug!("Generating for '{}' query", query.title);
+
     let mut r = String::new();
 
     r.push_str(&format!("Query: {}\n\n", query.title));

@@ -1,13 +1,17 @@
 //! Configs/Settings useds to access the datasource, setup
 //! the template and send the result
 
-use crate::source::SourceType;
+use crate::{
+    presentation::OutputFormat,
+    source::{Query, SourceType},
+};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Config {
     pub source: ConfigSource,
     pub send: ConfigSend,
+    pub querys: Vec<Query>,
 }
 
 /// Source setup
@@ -22,6 +26,8 @@ pub struct ConfigSend {
     pub mail: Option<ConfigMail>,
     #[serde(default)]
     pub stdout: bool,
+    #[serde(default)]
+    pub format: OutputFormat,
 }
 
 /// Smtp confs

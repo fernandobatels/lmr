@@ -12,7 +12,7 @@ A simple and fast tool for fetch query as reports from a database and send to em
     - [X] file
 - Generate as
     - [ ] html
-    - [ ] txt
+    - [x] txt
     - [ ] markdown
 - Send to
     - [X] stdout

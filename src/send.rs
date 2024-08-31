@@ -1,5 +1,6 @@
 //! Send/Output api
 
+use log::*;
 use mail_builder::MessageBuilder;
 use mail_send::SmtpClientBuilder;
 
@@ -15,6 +16,8 @@ pub async fn to_stdout(dt: &DataPresented) -> Result<(), String> {
 
 /// Send the exported data to email
 pub async fn to_mail(config: ConfigMail, dt: &DataPresented) -> Result<(), String> {
+    info!("Sending as email to {}", config.to);
+
     let mb = MessageBuilder::new()
         .from(("smrtool".to_string(), config.from))
         .to(config.to)

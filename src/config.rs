@@ -2,7 +2,7 @@
 //! the template and send the result
 
 use crate::{
-    presentation::OutputFormat,
+    presentation::formats::OutputFormat,
     source::{Query, SourceType},
 };
 use serde::Deserialize;

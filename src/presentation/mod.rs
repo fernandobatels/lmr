@@ -1,13 +1,12 @@
 //! Export/Presentation api
 
+use crate::{source::Query, value::Value};
+use formats::OutputFormat;
 use log::*;
-use serde::Deserialize;
-use tabled::{builder::Builder, settings::Style};
+use table::TableComponent;
 
-use crate::{
-    source::Query,
-    value::{TypedValue, Value},
-};
+pub mod formats;
+pub mod table;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DataPresented {
@@ -15,41 +14,13 @@ pub struct DataPresented {
     pub content: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-pub enum OutputFormat {
-    Plain,
-}
-
-impl OutputFormat {
-    pub fn title1(&self, title: &str) -> String {
-        match self {
-            OutputFormat::Plain => format!("\n{}\n\n", title),
-        }
-    }
-
-    pub fn title2(&self, title: &str) -> String {
-        match self {
-            OutputFormat::Plain => format!("{}\n\n", title),
-        }
-    }
-
-    pub fn simple(&self, content: &str) -> String {
-        match self {
-            OutputFormat::Plain => format!("{}\n", content),
-        }
-    }
-
-    pub fn break_line(&self) -> String {
-        match self {
-            OutputFormat::Plain => format!("\n"),
-        }
-    }
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Plain
-    }
+pub trait Component {
+    fn render(
+        &self,
+        query: Query,
+        data: Vec<Vec<Value>>,
+        format: OutputFormat,
+    ) -> Result<String, String>;
 }
 
 /// Export the querys results into specified format
@@ -96,32 +67,9 @@ pub fn present_query_as(
 
     if let Ok(rows) = data {
         if rows.len() > 0 {
-            let mut btable = Builder::default();
+            let table = TableComponent {}.render(query, rows, format.clone())?;
 
-            btable.push_record(
-                query
-                    .fields
-                    .iter()
-                    .map(|e| e.title.clone())
-                    .collect::<Vec<String>>(),
-            );
-
-            for row in rows {
-                btable.push_record(
-                    row.iter()
-                        .map(|e| {
-                            e.inner
-                                .clone()
-                                .unwrap_or(TypedValue::String(String::new()))
-                                .to_string()
-                        })
-                        .collect::<Vec<String>>(),
-                );
-            }
-
-            let table = btable.build().with(Style::ascii()).to_string();
-
-            r.push_str(&format.simple(&format!("{}", table)));
+            r.push_str(&format.simple(&table));
         } else {
             r.push_str(&format.simple("Empty result"));
         }

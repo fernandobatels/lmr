@@ -11,6 +11,7 @@ use serde::Deserialize;
 pub struct Config {
     pub source: ConfigSource,
     pub send: ConfigSend,
+    pub title: String,
     pub querys: Vec<Query>,
 }
 
@@ -36,7 +37,6 @@ pub struct ConfigMail {
     pub from: String,
     pub to: String,
     pub host: String,
-    pub subject: String,
     pub port: u16,
     pub user: String,
     pub pass: String,

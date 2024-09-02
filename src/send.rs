@@ -15,13 +15,13 @@ pub async fn to_stdout(dt: &DataPresented) -> Result<(), String> {
 }
 
 /// Send the exported data to email
-pub async fn to_mail(config: ConfigMail, dt: &DataPresented) -> Result<(), String> {
+pub async fn to_mail(config: ConfigMail, title: String, dt: &DataPresented) -> Result<(), String> {
     info!("Sending as email to {}", config.to);
 
     let mb = MessageBuilder::new()
         .from(("smrtool".to_string(), config.from))
         .to(config.to)
-        .subject(config.subject);
+        .subject(title);
 
     let message = if dt.is_html {
         mb.html_body(dt.content.clone())

@@ -26,13 +26,14 @@ pub trait Component {
 /// Export the querys results into specified format
 pub fn present_as(
     data: Vec<(Query, Result<Vec<Vec<Value>>, String>)>,
+    title: String,
     format: OutputFormat,
 ) -> Result<DataPresented, String> {
     info!("Generating the presentation");
 
     let mut r = String::new();
 
-    r.push_str(&format.title1("The results of your query are here!"));
+    r.push_str(&format.title1(&format!("The {} results are here!", title)));
 
     for (query, result) in data {
         r.push_str(&format.break_line());
@@ -144,13 +145,13 @@ pub mod tests {
             ]),
         )];
 
-        let exported = super::present_as(data, OutputFormat::Plain)?;
+        let exported = super::present_as(data, "Project Name".to_string(), OutputFormat::Plain)?;
 
         assert_eq!(
             DataPresented {
                 is_html: false,
                 content: r#"
-The results of your query are here!
+The Project Name results are here!
 
 
 Query: Title test
@@ -197,13 +198,13 @@ Consider support the project at https://github.com/fernandobatels/lmr
 
         let data = vec![(query.clone(), Err("Table 'users' not found".to_string()))];
 
-        let exported = super::present_as(data, OutputFormat::Plain)?;
+        let exported = super::present_as(data, "Project Name".to_string(), OutputFormat::Plain)?;
 
         assert_eq!(
             DataPresented {
                 is_html: false,
                 content: r#"
-The results of your query are here!
+The Project Name results are here!
 
 
 Query: Title test
@@ -242,13 +243,13 @@ Consider support the project at https://github.com/fernandobatels/lmr
 
         let data = vec![(query.clone(), Ok(vec![]))];
 
-        let exported = super::present_as(data, OutputFormat::Plain)?;
+        let exported = super::present_as(data, "Project Name".to_string(), OutputFormat::Plain)?;
 
         assert_eq!(
             DataPresented {
                 is_html: false,
                 content: r#"
-The results of your query are here!
+The Project Name results are here!
 
 
 Query: Title test

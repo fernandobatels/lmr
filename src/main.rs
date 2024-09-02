@@ -48,14 +48,14 @@ async fn main() -> Result<(), String> {
 
     let data = source::fetch(config.source, config.querys).await?;
 
-    let content = presentation::present_as(data, config.send.format)?;
+    let content = presentation::present_as(data, config.title.clone(), config.send.format)?;
 
     if config.send.stdout {
         send::to_stdout(&content).await?;
     }
 
     if let Some(set) = config.send.mail {
-        send::to_mail(set, &content).await?;
+        send::to_mail(set, config.title, &content).await?;
     }
 
     Ok(())

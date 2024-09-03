@@ -2,14 +2,18 @@
 
 use crate::config::ConfigSource;
 use crate::value::{Field, Value};
+use async_trait::async_trait;
 use log::*;
 use serde::Deserialize;
 
+#[cfg(feature = "postgres")]
+pub mod postgres;
 pub mod sqlite;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub enum SourceType {
     Sqlite,
+    Postgres,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -20,6 +24,7 @@ pub struct Query {
 }
 
 /// Data source driver definitions
+#[async_trait]
 pub trait Driver {
     // Establish the connection and prepare for fetch
     async fn connect(&mut self, conn: String) -> Result<(), String>;
@@ -29,11 +34,14 @@ pub trait Driver {
 }
 
 /// Setup the driver of specified kind
-fn get_driver(kind: SourceType) -> Result<impl Driver, String> {
+#[allow(unreachable_patterns)]
+fn get_driver(kind: SourceType) -> Result<Box<dyn Driver + Send>, String> {
     debug!("Preparing the driver for {:?}", kind);
 
     match kind {
-        SourceType::Sqlite => Ok(sqlite::SqliteDriver::init()),
+        SourceType::Sqlite => Ok(Box::new(sqlite::SqliteDriver::init())),
+        #[cfg(feature = "postgres")]
+        SourceType::Postgres => Ok(Box::new(postgres::PostgresDriver::init())),
         _ => Err("Not supported kind".to_string()),
     }
 }

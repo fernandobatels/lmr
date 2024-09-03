@@ -1,27 +1,36 @@
-//! Sqlite driver implementation
+//! Postgress driver implementation
+
 use super::{Driver, Query};
 use crate::value::{FieldType, TypedValue, Value};
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, NaiveTime};
-use sqlite::{self, Connection, Error, State};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
+use log::*;
+use tokio_postgres::{Client, Error, NoTls};
 
-pub struct SqliteDriver {
-    pub conn: Option<Connection>,
+pub struct PostgresDriver {
+    pub conn: Option<Client>,
 }
 
-impl SqliteDriver {
+impl PostgresDriver {
     pub fn init() -> Self {
         Self { conn: None }
     }
 }
 
 #[async_trait]
-impl Driver for SqliteDriver {
+impl Driver for PostgresDriver {
     async fn connect(&mut self, sconn: String) -> Result<(), String> {
-        let conn = sqlite::open(sconn)
-            .map_err(|e| format!("Sqlite connection failed: {}", e.to_string()))?;
+        let (client, connection) = tokio_postgres::connect(&sconn, NoTls)
+            .await
+            .map_err(|e| format!("Postgres connection failed: {}", e.to_string()))?;
 
-        self.conn = Some(conn);
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("Postgres connection error: {}", e);
+            }
+        });
+
+        self.conn = Some(client);
 
         Ok(())
     }
@@ -32,115 +41,114 @@ impl Driver for SqliteDriver {
             .as_ref()
             .ok_or("Connection not established".to_string())?;
 
-        let mut statement = conn
-            .prepare(query.sql)
+        let stmt = conn
+            .prepare(query.sql.as_str())
+            .await
             .map_err(|e| format!("Prepare statement failed: {}", e.to_string()))?;
 
-        let mut values = vec![];
+        let qrows = conn
+            .query(&stmt, &[])
+            .await
+            .map_err(|e| format!("Query failed: {}", e.to_string()))?;
 
-        while let Ok(State::Row) = statement.next() {
-            let mut row = vec![];
+        let mut columns = vec![];
+        let mut rows = vec![];
 
-            for col in &query.fields {
+        for col in query.fields {
+            let idx = stmt
+                .columns()
+                .iter()
+                .position(|c| c.name() == col.field)
+                .ok_or(format!("Column {} not found", col.field))?;
+
+            columns.push((col, idx));
+        }
+
+        for row in qrows {
+            let mut r = vec![];
+
+            for (col, idx) in &columns {
                 let efmt = |e: Error| {
                     format!(
                         "Read column {} row {} failed: {}",
                         col.field,
-                        row.len(),
+                        r.len(),
                         e.to_string()
                     )
                 };
-                let inner = match &col.kind {
-                    FieldType::Integer => statement
-                        .read::<Option<i64>, _>(col.field.as_str())
+
+                let inner = match col.kind {
+                    FieldType::Integer => row
+                        .try_get::<usize, Option<i32>>(*idx)
                         .map_err(efmt)?
-                        .map(|v| TypedValue::Integer(v as i32)),
-                    FieldType::String => statement
-                        .read::<Option<String>, _>(col.field.as_str())
+                        .map(|v| TypedValue::Integer(v)),
+                    FieldType::String => row
+                        .try_get::<usize, Option<String>>(*idx)
                         .map_err(efmt)?
                         .map(|v| TypedValue::String(v)),
-                    FieldType::Float => statement
-                        .read::<Option<f64>, _>(col.field.as_str())
+                    FieldType::Float => row
+                        .try_get::<usize, Option<f64>>(*idx)
                         .map_err(efmt)?
                         .map(|v| TypedValue::Float(v)),
-                    FieldType::Time => {
-                        let raw = statement
-                            .read::<Option<String>, _>(col.field.as_str())
-                            .map_err(efmt)?;
-                        if let Some(raw) = raw {
-                            let dt = NaiveTime::parse_from_str(&raw, "%H:%M:%S").map_err(|e| {
-                                format!("Error on parse the {} to time: {}", raw, e.to_string())
-                            })?;
-
-                            Some(TypedValue::Time(dt))
-                        } else {
-                            None
-                        }
-                    }
-                    FieldType::Date => {
-                        let raw = statement
-                            .read::<Option<String>, _>(col.field.as_str())
-                            .map_err(efmt)?;
-                        if let Some(raw) = raw {
-                            let dt = NaiveDate::parse_from_str(&raw, "%Y-%m-%d").map_err(|e| {
-                                format!("Error on parse the {} to date: {}", raw, e.to_string())
-                            })?;
-
-                            Some(TypedValue::Date(dt))
-                        } else {
-                            None
-                        }
-                    }
-                    FieldType::DateTime => {
-                        let raw = statement
-                            .read::<Option<String>, _>(col.field.as_str())
-                            .map_err(efmt)?;
-                        if let Some(raw) = raw {
-                            let dt = DateTime::parse_from_rfc3339(&raw).map_err(|e| {
-                                format!("Error on parse the {} to datetime: {}", raw, e.to_string())
-                            })?;
-
-                            Some(TypedValue::DateTime(dt))
-                        } else {
-                            None
-                        }
-                    }
+                    FieldType::Date => row
+                        .try_get::<usize, Option<NaiveDate>>(*idx)
+                        .map_err(efmt)?
+                        .map(|v| TypedValue::Date(v)),
+                    FieldType::Time => row
+                        .try_get::<usize, Option<NaiveTime>>(*idx)
+                        .map_err(efmt)?
+                        .map(|v| TypedValue::Time(v)),
+                    FieldType::DateTime => row
+                        .try_get::<usize, Option<DateTime<FixedOffset>>>(*idx)
+                        .map_err(efmt)?
+                        .map(|v| TypedValue::DateTime(v)),
                 };
 
-                row.push(Value {
+                r.push(Value {
                     inner,
                     field: col.clone(),
                 });
             }
 
-            values.push(row);
+            rows.push(r);
         }
 
-        Ok(values)
+        Ok(rows)
     }
 }
 
 #[cfg(test)]
 #[allow(deprecated)]
 pub mod tests {
-    use chrono::{FixedOffset, NaiveDate, NaiveTime, TimeZone};
-
     use crate::{
-        source::{sqlite::SqliteDriver, Driver, Query},
+        source::{postgres::PostgresDriver, Driver, Query},
         value::{Field, FieldType, TypedValue},
     };
+    use chrono::{FixedOffset, NaiveDate, NaiveTime, TimeZone};
 
     #[tokio::test]
     async fn supported_types() -> Result<(), String> {
-        let mut driver = SqliteDriver::init();
-        driver.connect(":memory:".to_string()).await?;
+        let mut driver = PostgresDriver::init();
 
-        let query = "
-                    CREATE TABLE test (a TEXT, b INTEGER, c REAL, d TEXT, e TEXT, f TEXT);
-                    INSERT INTO test VALUES (null, null, null, null, null, null);
-                    INSERT INTO test VALUES ('Olá mundo', 2024, 123.45, '23:55:19', '2024-05-15', '1996-12-19T16:39:57-08:00');
-                ";
-        driver.conn.as_ref().unwrap().execute(query).unwrap();
+        driver
+            .connect("postgresql://postgres:123@localhost/lmr_tests".to_string())
+            .await?;
+
+        let conn = driver.conn.as_ref().unwrap();
+
+        conn.execute(
+            "CREATE temp TABLE test (a varchar(50), b INT, c float, d time, e date, f timestamp with time zone);",
+            &[],
+        )
+        .await
+        .unwrap();
+        conn.execute(
+            "INSERT INTO test VALUES (null, null, null, null, null, null);",
+            &[],
+        )
+        .await
+        .unwrap();
+        conn.execute("INSERT INTO test VALUES ('Olá mundo', 2024, 123.45, '23:55:19', '2024-05-15', '1996-12-19T16:39:57-08:00');", &[]).await.unwrap();
 
         let query = Query {
             title: "Test".to_string(),
@@ -219,15 +227,26 @@ pub mod tests {
 
     #[tokio::test]
     async fn column_not_found() -> Result<(), String> {
-        let mut driver = SqliteDriver::init();
-        driver.connect(":memory:".to_string()).await?;
+        let mut driver = PostgresDriver::init();
 
-        let query = "
-                CREATE TABLE test (a TEXT, b INTEGER, c REAL, d TEXT, e TEXT, f TEXT);
-                INSERT INTO test VALUES (null, null, null, null, null, null);
-                INSERT INTO test VALUES ('Olá mundo', 2024, 123.45, '23:55:19', '2024-05-15', '1996-12-19T16:39:57-08:00');
-            ";
-        driver.conn.as_ref().unwrap().execute(query).unwrap();
+        driver
+            .connect("postgresql://postgres:123@localhost/lmr_tests".to_string())
+            .await?;
+
+        let conn = driver.conn.as_ref().unwrap();
+
+        conn.execute(
+            "CREATE temp TABLE test (a varchar(50), b INT, c numeric(18,4), d time, e date, f timestamp with time zone);",
+            &[],
+        )
+        .await
+        .unwrap();
+        conn.execute(
+            "INSERT INTO test VALUES (null, null, null, null, null, null);",
+            &[],
+        )
+        .await
+        .unwrap();
 
         let query = Query {
             title: "Test".to_string(),
@@ -247,10 +266,7 @@ pub mod tests {
         };
 
         let result = driver.fetch(query.clone()).await;
-        assert_eq!(
-            Some("Read column g row 1 failed: the index is out of range (g)".to_string()),
-            result.err()
-        );
+        assert_eq!(Some("Column g not found".to_string()), result.err());
 
         Ok(())
     }

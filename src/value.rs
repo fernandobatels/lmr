@@ -13,7 +13,7 @@ pub struct Value {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypedValue {
     String(String),
-    Integer(i64),
+    Integer(i32),
     Float(f64),
     Time(NaiveTime),
     Date(NaiveDate),
@@ -52,6 +52,7 @@ pub enum FieldType {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 pub mod tests {
     use chrono::{DateTime, NaiveDate, NaiveTime};
 

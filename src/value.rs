@@ -13,7 +13,7 @@ pub struct Value {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypedValue {
     String(String),
-    Integer(i32),
+    Integer(i64),
     Float(f64),
     Time(NaiveTime),
     Date(NaiveDate),

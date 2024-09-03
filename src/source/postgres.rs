@@ -5,7 +5,7 @@ use crate::value::{FieldType, TypedValue, Value};
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
 use log::*;
-use tokio_postgres::{Client, Error, NoTls};
+use tokio_postgres::{types::Type, Client, Error, NoTls};
 
 pub struct PostgresDriver {
     pub conn: Option<Client>,
@@ -60,14 +60,15 @@ impl Driver for PostgresDriver {
                 .iter()
                 .position(|c| c.name() == col.field)
                 .ok_or(format!("Column {} not found", col.field))?;
+            let raw = &stmt.columns()[idx];
 
-            columns.push((col, idx));
+            columns.push((col, idx, raw));
         }
 
         for row in qrows {
             let mut r = vec![];
 
-            for (col, idx) in &columns {
+            for (col, idx, rcol) in &columns {
                 let efmt = |e: Error| {
                     format!(
                         "Read column {} row {} failed: {}",
@@ -78,10 +79,21 @@ impl Driver for PostgresDriver {
                 };
 
                 let inner = match col.kind {
-                    FieldType::Integer => row
-                        .try_get::<usize, Option<i32>>(*idx)
-                        .map_err(efmt)?
-                        .map(|v| TypedValue::Integer(v)),
+                    FieldType::Integer => match rcol.type_() {
+                        &Type::INT2 => Ok(row
+                            .try_get::<usize, Option<i16>>(*idx)
+                            .map_err(efmt)?
+                            .map(|v| TypedValue::Integer(v.into()))),
+                        &Type::INT4 => Ok(row
+                            .try_get::<usize, Option<i32>>(*idx)
+                            .map_err(efmt)?
+                            .map(|v| TypedValue::Integer(v.into()))),
+                        &Type::INT8 => Ok(row
+                            .try_get::<usize, Option<i64>>(*idx)
+                            .map_err(efmt)?
+                            .map(|v| TypedValue::Integer(v.into()))),
+                        _ => Err(format!("Invalid integer type {}", rcol.type_())),
+                    }?,
                     FieldType::String => row
                         .try_get::<usize, Option<String>>(*idx)
                         .map_err(efmt)?
@@ -127,7 +139,7 @@ pub mod tests {
     use chrono::{FixedOffset, NaiveDate, NaiveTime, TimeZone};
 
     #[tokio::test]
-    async fn supported_types() -> Result<(), String> {
+    async fn basic_supported_types() -> Result<(), String> {
         let mut driver = PostgresDriver::init();
 
         driver
@@ -221,6 +233,64 @@ pub mod tests {
             )),
             row[5].inner
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ints_supported_types() -> Result<(), String> {
+        let mut driver = PostgresDriver::init();
+
+        driver
+            .connect("postgresql://postgres:123@localhost/lmr_tests".to_string())
+            .await?;
+
+        let conn = driver.conn.as_ref().unwrap();
+
+        conn.execute("CREATE temp TABLE test (a smallint, b int, c bigint);", &[])
+            .await
+            .unwrap();
+        conn.execute("INSERT INTO test VALUES (null, null, null);", &[])
+            .await
+            .unwrap();
+        conn.execute("INSERT INTO test VALUES (123, 456, 789);", &[])
+            .await
+            .unwrap();
+
+        let query = Query {
+            title: "Test".to_string(),
+            sql: "select * from test".to_string(),
+            fields: vec![
+                Field {
+                    title: "a".to_string(),
+                    field: "a".to_string(),
+                    kind: FieldType::Integer,
+                },
+                Field {
+                    title: "b".to_string(),
+                    field: "b".to_string(),
+                    kind: FieldType::Integer,
+                },
+                Field {
+                    title: "c".to_string(),
+                    field: "c".to_string(),
+                    kind: FieldType::Integer,
+                },
+            ],
+        };
+
+        let result = driver.fetch(query.clone()).await?;
+        assert_eq!(2, result.len());
+
+        let row = &result[0];
+        assert_eq!(None, row[0].inner);
+        assert_eq!(None, row[1].inner);
+        assert_eq!(None, row[2].inner);
+
+        let row = &result[1];
+        assert_eq!(Some(TypedValue::Integer(123)), row[0].inner);
+        assert_eq!(Some(TypedValue::Integer(456)), row[1].inner);
+        assert_eq!(Some(TypedValue::Integer(789)), row[2].inner);
 
         Ok(())
     }

@@ -54,7 +54,7 @@ impl Driver for SqliteDriver {
                     FieldType::Integer => statement
                         .read::<Option<i64>, _>(col.field.as_str())
                         .map_err(efmt)?
-                        .map(|v| TypedValue::Integer(v as i32)),
+                        .map(|v| TypedValue::Integer(v)),
                     FieldType::String => statement
                         .read::<Option<String>, _>(col.field.as_str())
                         .map_err(efmt)?

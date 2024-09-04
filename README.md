@@ -11,9 +11,9 @@ A simple and fast tool for fetch query as reports from a database and send to em
 - Settings
     - [X] file
 - Generate as
-    - [ ] html
+    - [x] html
     - [x] txt
-    - [ ] markdown
+    - [x] markdown
 - Send to
     - [X] stdout
     - [X] mail

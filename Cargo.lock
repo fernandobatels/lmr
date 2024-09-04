@@ -830,6 +830,7 @@ dependencies = [
  "serde_yaml",
  "simplelog",
  "sqlite",
+ "table_to_html",
  "tabled",
  "tokio",
  "tokio-postgres",
@@ -1618,6 +1619,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "table_to_html"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7fd4bc956f6400d179ec9c3947d220b5522e493b6bb9d0edd5f33f64aa08b3d"
+dependencies = [
+ "tabled",
 ]
 
 [[package]]

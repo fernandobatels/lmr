@@ -6,15 +6,10 @@ use crate::{
     source::Query,
     value::{TypedValue, Value},
 };
-use tabled::{builder::Builder, settings::Style, Table};
+use table_to_html::HtmlTable;
+use tabled::{builder::Builder, settings::Style};
 
 pub struct TableComponent {}
-
-fn stylefy(table: &mut Table, format: OutputFormat) {
-    match format {
-        OutputFormat::Plain => table.with(Style::ascii()),
-    };
-}
 
 impl Component for TableComponent {
     fn render(
@@ -46,11 +41,20 @@ impl Component for TableComponent {
             );
         }
 
-        let mut table = btable.build();
+        Ok(to_format(btable, format))
+    }
+}
 
-        stylefy(&mut table, format);
+fn to_format(btable: Builder, format: OutputFormat) -> String {
+    match format {
+        OutputFormat::Plain => btable.build().with(Style::ascii()).to_string(),
+        OutputFormat::Html => {
+            let rows: Vec<Vec<String>> = btable.into();
+            let table = HtmlTable::with_header(rows);
 
-        Ok(format!("{}", table.to_string()))
+            format!("{}", table)
+        }
+        OutputFormat::Markdown => btable.build().with(Style::markdown()).to_string(),
     }
 }
 
@@ -63,7 +67,7 @@ pub mod tests {
     use crate::value::{Field, FieldType, TypedValue, Value};
 
     #[test]
-    pub fn basic_table() {
+    pub fn txt_table() {
         let query = Query {
             title: "Title test".to_string(),
             sql: "select * from users".to_string(),
@@ -116,6 +120,166 @@ pub mod tests {
 +-----------+-----+
 | jane.abc  | 25  |
 +-----------+-----+"#
+                .to_string())
+        );
+    }
+
+    #[test]
+    pub fn markdown_table() {
+        let query = Query {
+            title: "Title test".to_string(),
+            sql: "select * from users".to_string(),
+            fields: vec![
+                Field {
+                    title: "User name".to_string(),
+                    field: "name".to_string(),
+                    kind: FieldType::String,
+                },
+                Field {
+                    title: "Age".to_string(),
+                    field: "age".to_string(),
+                    kind: FieldType::Integer,
+                },
+            ],
+        };
+
+        let data = vec![
+            vec![
+                Value {
+                    inner: Some(TypedValue::String("john.abc".to_string())),
+                    field: query.fields[0].clone(),
+                },
+                Value {
+                    inner: Some(TypedValue::Integer(30)),
+                    field: query.fields[1].clone(),
+                },
+            ],
+            vec![
+                Value {
+                    inner: Some(TypedValue::String("jane.abc".to_string())),
+                    field: query.fields[0].clone(),
+                },
+                Value {
+                    inner: Some(TypedValue::Integer(25)),
+                    field: query.fields[1].clone(),
+                },
+            ],
+        ];
+
+        let table = TableComponent {};
+        let result = table.render(query, data, OutputFormat::Markdown);
+
+        assert_eq!(
+            result,
+            Ok(r#"| User name | Age |
+|-----------|-----|
+| john.abc  | 30  |
+| jane.abc  | 25  |"#
+                .to_string())
+        );
+    }
+
+    #[test]
+    pub fn html_table() {
+        let query = Query {
+            title: "Title test".to_string(),
+            sql: "select * from users".to_string(),
+            fields: vec![
+                Field {
+                    title: "User name".to_string(),
+                    field: "name".to_string(),
+                    kind: FieldType::String,
+                },
+                Field {
+                    title: "Age".to_string(),
+                    field: "age".to_string(),
+                    kind: FieldType::Integer,
+                },
+            ],
+        };
+
+        let data = vec![
+            vec![
+                Value {
+                    inner: Some(TypedValue::String("john.abc".to_string())),
+                    field: query.fields[0].clone(),
+                },
+                Value {
+                    inner: Some(TypedValue::Integer(30)),
+                    field: query.fields[1].clone(),
+                },
+            ],
+            vec![
+                Value {
+                    inner: Some(TypedValue::String("jane.abc".to_string())),
+                    field: query.fields[0].clone(),
+                },
+                Value {
+                    inner: Some(TypedValue::Integer(25)),
+                    field: query.fields[1].clone(),
+                },
+            ],
+        ];
+
+        let table = TableComponent {};
+        let result = table.render(query, data, OutputFormat::Html);
+
+        assert_eq!(
+            result,
+            Ok(r#"<table>
+    <thead>
+        <tr>
+            <th>
+                <div>
+                    <p>
+                        User name
+                    </p>
+                </div>
+            </th>
+            <th>
+                <div>
+                    <p>
+                        Age
+                    </p>
+                </div>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <div>
+                    <p>
+                        john.abc
+                    </p>
+                </div>
+            </td>
+            <td>
+                <div>
+                    <p>
+                        30
+                    </p>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div>
+                    <p>
+                        jane.abc
+                    </p>
+                </div>
+            </td>
+            <td>
+                <div>
+                    <p>
+                        25
+                    </p>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>"#
                 .to_string())
         );
     }

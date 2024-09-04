@@ -49,7 +49,7 @@ pub fn present_as(
     );
 
     Ok(DataPresented {
-        is_html: false,
+        is_html: format == OutputFormat::Html,
         content: r,
     })
 }

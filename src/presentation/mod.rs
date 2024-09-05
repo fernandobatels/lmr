@@ -15,12 +15,7 @@ pub struct DataPresented {
 }
 
 pub trait Component {
-    fn render(
-        &self,
-        query: Query,
-        data: Vec<Vec<Value>>,
-        format: OutputFormat,
-    ) -> Result<String, String>;
+    fn render(&self, query: Query, data: Vec<Vec<Value>>, format: OutputFormat) -> String;
 }
 
 /// Export the querys results into specified format
@@ -48,6 +43,8 @@ pub fn present_as(
         &format.simple("Consider support the project at https://github.com/fernandobatels/lmr"),
     );
 
+    let r = format.body(&r);
+
     Ok(DataPresented {
         is_html: format == OutputFormat::Html,
         content: r,
@@ -68,7 +65,7 @@ pub fn present_query_as(
 
     if let Ok(rows) = data {
         if rows.len() > 0 {
-            let table = TableComponent {}.render(query, rows, format.clone())?;
+            let table = TableComponent {}.render(query, rows, format.clone());
 
             r.push_str(&format.simple(&table));
         } else {

@@ -6,18 +6,16 @@ use crate::{
     source::Query,
     value::{TypedValue, Value},
 };
-use table_to_html::HtmlTable;
+use table_to_html::{
+    html::{Attribute, HtmlElement, HtmlVisitorMut},
+    HtmlTable,
+};
 use tabled::{builder::Builder, settings::Style};
 
 pub struct TableComponent {}
 
 impl Component for TableComponent {
-    fn render(
-        &self,
-        query: Query,
-        rows: Vec<Vec<Value>>,
-        format: OutputFormat,
-    ) -> Result<String, String> {
+    fn render(&self, query: Query, rows: Vec<Vec<Value>>, format: OutputFormat) -> String {
         let mut btable = Builder::default();
 
         btable.push_record(
@@ -41,20 +39,31 @@ impl Component for TableComponent {
             );
         }
 
-        Ok(to_format(btable, format))
+        match format {
+            OutputFormat::Plain => btable.build().with(Style::ascii()).to_string(),
+            OutputFormat::Html => {
+                let rows: Vec<Vec<String>> = btable.into();
+                let mut table = HtmlTable::with_header(rows);
+                table.visit_mut(HtmlTableClasses {});
+
+                format!("{}", table)
+            }
+            OutputFormat::Markdown => btable.build().with(Style::markdown()).to_string(),
+        }
     }
 }
 
-fn to_format(btable: Builder, format: OutputFormat) -> String {
-    match format {
-        OutputFormat::Plain => btable.build().with(Style::ascii()).to_string(),
-        OutputFormat::Html => {
-            let rows: Vec<Vec<String>> = btable.into();
-            let table = HtmlTable::with_header(rows);
+struct HtmlTableClasses {}
 
-            format!("{}", table)
+impl HtmlVisitorMut for HtmlTableClasses {
+    fn visit_element_mut(&mut self, e: &mut HtmlElement) -> bool {
+        if e.tag() == "table" {
+            let mut attrs = e.attrs().to_vec();
+            attrs.push(Attribute::new("class", "lmr-table"));
+            *e = HtmlElement::new("table", attrs, e.value().cloned());
         }
-        OutputFormat::Markdown => btable.build().with(Style::markdown()).to_string(),
+
+        true
     }
 }
 
@@ -112,15 +121,15 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Plain);
 
         assert_eq!(
-            result,
-            Ok(r#"+-----------+-----+
+            r#"+-----------+-----+
 | User name | Age |
 +-----------+-----+
 | john.abc  | 30  |
 +-----------+-----+
 | jane.abc  | 25  |
 +-----------+-----+"#
-                .to_string())
+                .to_string(),
+            result
         );
     }
 
@@ -170,12 +179,12 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Markdown);
 
         assert_eq!(
-            result,
-            Ok(r#"| User name | Age |
+            r#"| User name | Age |
 |-----------|-----|
 | john.abc  | 30  |
 | jane.abc  | 25  |"#
-                .to_string())
+                .to_string(),
+            result
         );
     }
 
@@ -225,8 +234,7 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Html);
 
         assert_eq!(
-            result,
-            Ok(r#"<table>
+            r#"<table class="lmr-table">
     <thead>
         <tr>
             <th>
@@ -280,7 +288,8 @@ pub mod tests {
         </tr>
     </tbody>
 </table>"#
-                .to_string())
+                .to_string(),
+            result
         );
     }
 }

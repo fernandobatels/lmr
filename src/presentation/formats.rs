@@ -13,7 +13,7 @@ impl OutputFormat {
     pub fn title1(&self, title: &str) -> String {
         match self {
             OutputFormat::Plain => format!("\n{}\n\n", title),
-            OutputFormat::Html => format!("<h1>{}</h1>\n", title),
+            OutputFormat::Html => format!("<h1 class=\"lmr-h1\">{}</h1>\n", title),
             OutputFormat::Markdown => format!("\n# {}\n\n", title),
         }
     }
@@ -21,16 +21,14 @@ impl OutputFormat {
     pub fn title2(&self, title: &str) -> String {
         match self {
             OutputFormat::Plain => format!("{}\n\n", title),
-            OutputFormat::Html => format!("<h3>{}</h3>\n", title),
+            OutputFormat::Html => format!("<h3 class=\"lmr-h3\">{}</h3>\n", title),
             OutputFormat::Markdown => format!("## {}\n\n", title),
         }
     }
 
     pub fn simple(&self, content: &str) -> String {
         match self {
-            OutputFormat::Plain => format!("{}\n", content),
-            OutputFormat::Html => format!("{}\n", content),
-            OutputFormat::Markdown => format!("{}\n", content),
+            _ => format!("{}\n", content),
         }
     }
 
@@ -39,6 +37,13 @@ impl OutputFormat {
             OutputFormat::Plain => format!("\n"),
             OutputFormat::Html => format!("<br>\n"),
             OutputFormat::Markdown => format!("\n"),
+        }
+    }
+
+    pub fn body(&self, content: &str) -> String {
+        match self {
+            OutputFormat::Html => include_str!("template.html").replace("{{ content }}", content),
+            _ => format!("{}", content),
         }
     }
 }
@@ -60,7 +65,7 @@ pub mod tests {
             OutputFormat::Plain.title1("Title")
         );
         assert_eq!(
-            "<h1>Title</h1>\n".to_string(),
+            "<h1 class=\"lmr-h1\">Title</h1>\n".to_string(),
             OutputFormat::Html.title1("Title")
         );
         assert_eq!(
@@ -73,7 +78,7 @@ pub mod tests {
     fn title2() {
         assert_eq!("Title\n\n".to_string(), OutputFormat::Plain.title2("Title"));
         assert_eq!(
-            "<h3>Title</h3>\n".to_string(),
+            "<h3 class=\"lmr-h3\">Title</h3>\n".to_string(),
             OutputFormat::Html.title2("Title")
         );
         assert_eq!(
@@ -103,5 +108,18 @@ pub mod tests {
         assert_eq!("\n".to_string(), OutputFormat::Plain.break_line());
         assert_eq!("<br>\n".to_string(), OutputFormat::Html.break_line());
         assert_eq!("\n".to_string(), OutputFormat::Markdown.break_line());
+    }
+
+    #[test]
+    pub fn body() {
+        assert_eq!("Content".to_string(), OutputFormat::Plain.body("Content"));
+        assert_eq!(
+            "Content".to_string(),
+            OutputFormat::Markdown.body("Content")
+        );
+        assert_eq!(
+            include_str!("template.html").replace("{{ content }}", "Content"),
+            OutputFormat::Html.body("Content")
+        );
     }
 }

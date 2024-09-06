@@ -1,6 +1,5 @@
 //! Data sources drivers
 
-use crate::config::ConfigSource;
 use crate::value::{Field, Value};
 use async_trait::async_trait;
 use log::*;
@@ -14,6 +13,12 @@ pub mod sqlite;
 pub enum SourceType {
     Sqlite,
     Postgres,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct Source {
+    pub kind: SourceType,
+    pub conn: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -48,7 +53,7 @@ fn get_driver(kind: SourceType) -> Result<Box<dyn Driver + Send>, String> {
 
 /// Query and fetch the data from the database
 pub async fn fetch(
-    source: ConfigSource,
+    source: Source,
     querys: Vec<Query>,
 ) -> Result<Vec<(Query, Result<Vec<Vec<Value>>, String>)>, String> {
     let mut driver = get_driver(source.kind)?;
@@ -75,8 +80,7 @@ pub async fn fetch(
 #[cfg(test)]
 pub mod tests {
     use crate::{
-        config::ConfigSource,
-        source::{Query, SourceType},
+        source::{Source, Query, SourceType},
         value::{Field, FieldType, TypedValue},
     };
 
@@ -96,7 +100,7 @@ pub mod tests {
         .execute(query)
         .unwrap();
 
-        let source = ConfigSource {
+        let source = Source {
             conn: "/tmp/test-lmr.db".to_string(),
             kind: SourceType::Sqlite,
         };
@@ -158,7 +162,7 @@ pub mod tests {
         .execute(query)
         .unwrap();
 
-        let source = ConfigSource {
+        let source = Source {
             conn: "/tmp/test-lmr2.db".to_string(),
             kind: SourceType::Sqlite,
         };

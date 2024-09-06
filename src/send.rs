@@ -3,9 +3,19 @@
 use log::*;
 use mail_builder::MessageBuilder;
 use mail_send::SmtpClientBuilder;
+use serde::Deserialize;
 
-use crate::config::ConfigMail;
 use crate::presentation::DataPresented;
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct MailServer {
+    pub from: String,
+    pub to: String,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub pass: String,
+}
 
 /// Send the exported data to STDOUT
 pub async fn to_stdout(dt: &DataPresented) -> Result<(), String> {
@@ -15,7 +25,7 @@ pub async fn to_stdout(dt: &DataPresented) -> Result<(), String> {
 }
 
 /// Send the exported data to email
-pub async fn to_mail(config: ConfigMail, title: String, dt: &DataPresented) -> Result<(), String> {
+pub async fn to_mail(config: MailServer, title: String, dt: &DataPresented) -> Result<(), String> {
     info!("Sending as email to {}", config.to);
 
     let mb = MessageBuilder::new()

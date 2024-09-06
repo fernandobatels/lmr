@@ -6,10 +6,16 @@ A simple and fast tool for fetch query as reports from a database and send to em
 - Fetch from
     - [x] sqlite
     - [x] postgresql
+    - [ ] mysql
     - [ ] firebird
     - [ ] mssql
 - Settings
     - [X] file
+- Components
+    - [x] Table
+    - [ ] Line charts
+    - [ ] Bar charts
+    - [ ] Pie charts
 - Generate as
     - [x] html
     - [x] txt
@@ -24,5 +30,3 @@ A simple and fast tool for fetch query as reports from a database and send to em
     - [ ] Docker
     - [ ] Bin asset
     - [ ] Config template example
-- Extras
-    - [ ] Support charts

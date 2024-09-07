@@ -20,6 +20,16 @@ pub enum TypedValue {
     DateTime(DateTime<FixedOffset>),
 }
 
+impl TypedValue {
+    pub fn to_float(&self) -> Result<f32, String> {
+        match self {
+            TypedValue::Float(v) => Ok(*v as f32),
+            TypedValue::Integer(v) => Ok(*v as f32),
+            _ => Err(format!("Value {} is not a float", self.to_string())),
+        }
+    }
+}
+
 impl ToString for TypedValue {
     fn to_string(&self) -> String {
         match self {

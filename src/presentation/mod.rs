@@ -3,8 +3,8 @@
 use crate::{source::Query, value::Value};
 use formats::OutputFormat;
 use log::*;
-use table::TableComponent;
 
+pub mod charts;
 pub mod formats;
 pub mod table;
 
@@ -15,12 +15,17 @@ pub struct DataPresented {
 }
 
 pub trait Component {
-    fn render(&self, query: Query, data: Vec<Vec<Value>>, format: OutputFormat) -> String;
+    fn render(
+        &self,
+        query: Query,
+        data: Vec<Vec<Value>>,
+        format: OutputFormat,
+    ) -> Result<String, String>;
 }
 
 /// Export the querys results into specified format
 pub fn present_as(
-    data: Vec<(Query, Result<Vec<Vec<Value>>, String>)>,
+    data: Vec<(Query, Box<dyn Component>, Result<Vec<Vec<Value>>, String>)>,
     title: String,
     format: OutputFormat,
 ) -> Result<DataPresented, String> {
@@ -30,10 +35,10 @@ pub fn present_as(
 
     r.push_str(&format.title1(&format!("The {} results are here!", title)));
 
-    for (query, result) in data {
+    for (query, comp, result) in data {
         r.push_str(&format.break_line());
 
-        let rquery = present_query_as(query, result, format.clone())?;
+        let rquery = present_query_as(query, comp, result, format.clone())?;
         r.push_str(&rquery);
         r.push_str(&format.break_line());
         r.push_str(&format.break_line());
@@ -54,6 +59,7 @@ pub fn present_as(
 /// Export the query result
 pub fn present_query_as(
     query: Query,
+    component: Box<dyn Component>,
     data: Result<Vec<Vec<Value>>, String>,
     format: OutputFormat,
 ) -> Result<String, String> {
@@ -65,9 +71,15 @@ pub fn present_query_as(
 
     if let Ok(rows) = data {
         if rows.len() > 0 {
-            let table = TableComponent {}.render(query, rows, format.clone());
+            let table = component.render(query, rows, format.clone());
 
-            r.push_str(&format.simple(&table));
+            if let Ok(table) = table {
+                r.push_str(&format.simple(&table));
+            } else {
+                r.push_str(
+                    &format.simple(&format!("Error on rendering: {}", table.err().unwrap())),
+                );
+            }
         } else {
             r.push_str(&format.simple("Empty result"));
         }
@@ -81,6 +93,7 @@ pub fn present_query_as(
 #[cfg(test)]
 pub mod tests {
     use crate::{
+        presentation::{charts::ChartComponent, charts::*, table::TableComponent, Component},
         source::Query,
         value::{Field, FieldType, TypedValue, Value},
     };
@@ -108,6 +121,7 @@ pub mod tests {
 
         let data = vec![(
             query.clone(),
+            Box::new(TableComponent {}) as Box<dyn Component>,
             Ok(vec![
                 vec![
                     Value {
@@ -175,7 +189,7 @@ Consider support the project at https://github.com/fernandobatels/lmr
     }
 
     #[test]
-    fn present_as_txt_with_empty_result() -> Result<(), String> {
+    fn present_as_txt_with_failed_result() -> Result<(), String> {
         let query = Query {
             title: "Title test".to_string(),
             sql: "select * from users".to_string(),
@@ -193,7 +207,11 @@ Consider support the project at https://github.com/fernandobatels/lmr
             ],
         };
 
-        let data = vec![(query.clone(), Err("Table 'users' not found".to_string()))];
+        let data = vec![(
+            query.clone(),
+            Box::new(TableComponent {}) as Box<dyn Component>,
+            Err("Table 'users' not found".to_string()),
+        )];
 
         let exported = super::present_as(data, "Project Name".to_string(), OutputFormat::Plain)?;
 
@@ -220,7 +238,7 @@ Consider support the project at https://github.com/fernandobatels/lmr
     }
 
     #[test]
-    fn present_as_txt_with_failed_result() -> Result<(), String> {
+    fn present_as_txt_with_empty_result() -> Result<(), String> {
         let query = Query {
             title: "Title test".to_string(),
             sql: "select * from users".to_string(),
@@ -238,7 +256,11 @@ Consider support the project at https://github.com/fernandobatels/lmr
             ],
         };
 
-        let data = vec![(query.clone(), Ok(vec![]))];
+        let data = vec![(
+            query.clone(),
+            Box::new(TableComponent {}) as Box<dyn Component>,
+            Ok(vec![]),
+        )];
 
         let exported = super::present_as(data, "Project Name".to_string(), OutputFormat::Plain)?;
 
@@ -252,6 +274,80 @@ The Project Name results are here!
 Query: Title test
 
 Empty result
+
+
+Consider support the project at https://github.com/fernandobatels/lmr
+"#
+                .to_string()
+            },
+            exported.clone()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn present_as_txt_with_failed_render() -> Result<(), String> {
+        let query = Query {
+            title: "Title test".to_string(),
+            sql: "select * from users".to_string(),
+            fields: vec![
+                Field {
+                    title: "User name".to_string(),
+                    field: "name".to_string(),
+                    kind: FieldType::String,
+                },
+                Field {
+                    title: "Age".to_string(),
+                    field: "age".to_string(),
+                    kind: FieldType::Integer,
+                },
+            ],
+        };
+
+        let data = vec![(
+            query.clone(),
+            Box::new(ChartComponent {
+                kind: ChartType::Bar,
+                keys: "name".to_string(),
+                series: vec![],
+            }) as Box<dyn Component>,
+            Ok(vec![
+                vec![
+                    Value {
+                        inner: Some(TypedValue::String("john.abc".to_string())),
+                        field: query.fields[0].clone(),
+                    },
+                    Value {
+                        inner: Some(TypedValue::Integer(30)),
+                        field: query.fields[1].clone(),
+                    },
+                ],
+                vec![
+                    Value {
+                        inner: None,
+                        field: query.fields[0].clone(),
+                    },
+                    Value {
+                        inner: Some(TypedValue::Integer(28)),
+                        field: query.fields[1].clone(),
+                    },
+                ],
+            ]),
+        )];
+
+        let exported = super::present_as(data, "Project Name".to_string(), OutputFormat::Plain)?;
+
+        assert_eq!(
+            DataPresented {
+                is_html: false,
+                content: r#"
+The Project Name results are here!
+
+
+Query: Title test
+
+Error on rendering: Output format without chart support
 
 
 Consider support the project at https://github.com/fernandobatels/lmr

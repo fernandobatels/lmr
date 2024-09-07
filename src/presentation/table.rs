@@ -15,7 +15,12 @@ use tabled::{builder::Builder, settings::Style};
 pub struct TableComponent {}
 
 impl Component for TableComponent {
-    fn render(&self, query: Query, rows: Vec<Vec<Value>>, format: OutputFormat) -> String {
+    fn render(
+        &self,
+        query: Query,
+        rows: Vec<Vec<Value>>,
+        format: OutputFormat,
+    ) -> Result<String, String> {
         let mut btable = Builder::default();
 
         btable.push_record(
@@ -39,7 +44,7 @@ impl Component for TableComponent {
             );
         }
 
-        match format {
+        let table = match format {
             OutputFormat::Plain => btable.build().with(Style::ascii()).to_string(),
             OutputFormat::Html => {
                 let rows: Vec<Vec<String>> = btable.into();
@@ -49,7 +54,9 @@ impl Component for TableComponent {
                 format!("{}", table)
             }
             OutputFormat::Markdown => btable.build().with(Style::markdown()).to_string(),
-        }
+        };
+
+        Ok(table)
     }
 }
 
@@ -121,14 +128,14 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Plain);
 
         assert_eq!(
-            r#"+-----------+-----+
+            Ok(r#"+-----------+-----+
 | User name | Age |
 +-----------+-----+
 | john.abc  | 30  |
 +-----------+-----+
 | jane.abc  | 25  |
 +-----------+-----+"#
-                .to_string(),
+                .to_string()),
             result
         );
     }
@@ -179,11 +186,11 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Markdown);
 
         assert_eq!(
-            r#"| User name | Age |
+            Ok(r#"| User name | Age |
 |-----------|-----|
 | john.abc  | 30  |
 | jane.abc  | 25  |"#
-                .to_string(),
+                .to_string()),
             result
         );
     }
@@ -234,7 +241,7 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Html);
 
         assert_eq!(
-            r#"<table class="lmr-table">
+            Ok(r#"<table class="lmr-table">
     <thead>
         <tr>
             <th>
@@ -288,7 +295,7 @@ pub mod tests {
         </tr>
     </tbody>
 </table>"#
-                .to_string(),
+                .to_string()),
             result
         );
     }

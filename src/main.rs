@@ -46,9 +46,18 @@ async fn main() -> Result<(), String> {
     let config = serde_yaml::from_str::<Config>(&sconfig)
         .map_err(|e| format!("Config file not parsed: {}", e.to_string()))?;
 
-    let data = source::fetch(config.source, config.querys).await?;
+    let querys = config::to_querys(config.querys);
+    let lquerys = querys.iter().map(|q| q.0.clone()).collect::<Vec<_>>();
 
-    let content = presentation::present_as(data, config.title.clone(), config.send.format)?;
+    let data = source::fetch(config.source, lquerys).await?;
+
+    let mut ndata = vec![];
+    for (q, r) in data {
+        let chart = config::find_component(querys.clone(), q.clone());
+        ndata.push((q, chart, r));
+    }
+
+    let content = presentation::present_as(ndata, config.title.clone(), config.send.format)?;
 
     if config.send.stdout {
         send::to_stdout(&content).await?;

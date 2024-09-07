@@ -80,7 +80,7 @@ pub async fn fetch(
 #[cfg(test)]
 pub mod tests {
     use crate::{
-        source::{Source, Query, SourceType},
+        source::{Query, Source, SourceType},
         value::{Field, FieldType, TypedValue},
     };
 

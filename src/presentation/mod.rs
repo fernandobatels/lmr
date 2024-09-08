@@ -309,8 +309,9 @@ Consider support the project at https://github.com/fernandobatels/lmr
             query.clone(),
             Box::new(ChartComponent {
                 kind: ChartType::Bar,
-                keys: "name".to_string(),
-                series: vec![],
+                keys_by: Some("name".to_string()),
+                series_by: None,
+                series: Some(vec![]),
             }) as Box<dyn Component>,
             Ok(vec![
                 vec![

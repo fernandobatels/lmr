@@ -16,7 +16,6 @@ pub struct Config {
     pub source: Source,
     pub send: ConfigSend,
     pub title: String,
-    #[serde(default)]
     pub querys: Vec<ConfigQuery>,
 }
 
@@ -25,6 +24,7 @@ pub struct ConfigQuery {
     pub title: String,
     pub sql: String,
     pub fields: Vec<Field>,
+    #[serde(default)]
     pub chart: Option<ChartComponent>,
 }
 

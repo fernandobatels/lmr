@@ -13,9 +13,9 @@ A simple and fast tool for fetch query as reports from a database and send to em
     - [X] file
 - Components
     - [x] Table
-    - [ ] Line charts
-    - [ ] Bar charts
-    - [ ] Pie charts
+    - [x] Line charts
+    - [x] Bar charts
+    - [x] Pie charts
 - Generate as
     - [x] html
     - [x] txt

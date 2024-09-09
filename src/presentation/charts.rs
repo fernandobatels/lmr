@@ -1,10 +1,10 @@
 //! Charts component
 
-use super::{formats::OutputFormat, Component};
+use super::{formats::OutputFormat, Component, ImagePresented, RenderedContent};
 use crate::{source::Query, value::Value};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use charts_rs::{BarChart, Box, LineChart, PieChart, Series};
+use charts_rs::{BarChart, Box, LineChart, PieChart, Series, self};
 use serde::Deserialize;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub enum ChartType {
@@ -116,7 +116,7 @@ impl Component for ChartComponent {
         query: Query,
         data: Vec<Vec<Value>>,
         format: OutputFormat,
-    ) -> Result<String, String> {
+    ) -> Result<RenderedContent, String> {
         if format != OutputFormat::Html {
             return Err("Output format without chart support".to_string());
         }
@@ -151,12 +151,23 @@ impl Component for ChartComponent {
         }
         .map_err(|e| format!("Error generating chart: {}", e))?;
 
-        let svg = STANDARD.encode(svg);
+        let png = charts_rs::svg_to_png(&svg).map_err(|e| format!("Error converting SVG to PNG: {}", e))?;
 
-        Ok(format!(
-            "<img class=\"lmr-img\" src=\"data:image/svg+xml;base64, {}\">",
-            svg
-        ))
+        let cid = Uuid::new_v4().to_string();
+
+        let img_tag = format!(
+            "<img class=\"lmr-img\" title=\"{}\" src=\"cid:{}\">",
+            query.title, cid
+        );
+
+        Ok(RenderedContent {
+            content: img_tag,
+            images: vec![ImagePresented {
+                mime: "image/png".to_string(),
+                data: png,
+                cid: cid,
+            }],
+        })
     }
 }
 
@@ -280,7 +291,8 @@ pub mod tests {
         assert_eq!(true, result.is_ok());
         assert!(result
             .unwrap()
-            .starts_with("<img class=\"lmr-img\" src=\"data:image/svg+xml;base64, "));
+            .content
+            .starts_with("<img class=\"lmr-img\" title=\"Title test\" src=\"cid:"));
     }
 
     #[test]

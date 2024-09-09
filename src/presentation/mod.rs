@@ -12,6 +12,20 @@ pub mod table;
 pub struct DataPresented {
     pub is_html: bool,
     pub content: String,
+    pub images: Vec<ImagePresented>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImagePresented {
+    pub cid: String,
+    pub mime: String,
+    pub data: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RenderedContent {
+    pub content: String,
+    pub images: Vec<ImagePresented>,
 }
 
 pub trait Component {
@@ -20,7 +34,7 @@ pub trait Component {
         query: Query,
         data: Vec<Vec<Value>>,
         format: OutputFormat,
-    ) -> Result<String, String>;
+    ) -> Result<RenderedContent, String>;
 }
 
 /// Export the querys results into specified format
@@ -32,6 +46,7 @@ pub fn present_as(
     info!("Generating the presentation");
 
     let mut r = String::new();
+    let mut images = vec![];
 
     r.push_str(&format.title1(&format!("The {} results are here!", title)));
 
@@ -39,9 +54,10 @@ pub fn present_as(
         r.push_str(&format.break_line());
 
         let rquery = present_query_as(query, comp, result, format.clone())?;
-        r.push_str(&rquery);
+        r.push_str(&rquery.content);
         r.push_str(&format.break_line());
         r.push_str(&format.break_line());
+        images.extend(rquery.images);
     }
 
     r.push_str(
@@ -53,38 +69,45 @@ pub fn present_as(
     Ok(DataPresented {
         is_html: format == OutputFormat::Html,
         content: r,
+        images,
     })
 }
 
 /// Export the query result
-pub fn present_query_as(
+fn present_query_as(
     query: Query,
     component: Box<dyn Component>,
     data: Result<Vec<Vec<Value>>, String>,
     format: OutputFormat,
-) -> Result<String, String> {
+) -> Result<RenderedContent, String> {
     debug!("Generating for '{}' query", query.title);
 
-    let mut r = String::new();
+    let mut r = RenderedContent {
+        content: String::new(),
+        images: vec![],
+    };
 
-    r.push_str(&format.title2(&format!("Query: {}", query.title)));
+    r.content
+        .push_str(&format.title2(&format!("Query: {}", query.title)));
 
     if let Ok(rows) = data {
         if rows.len() > 0 {
             let table = component.render(query, rows, format.clone());
 
             if let Ok(table) = table {
-                r.push_str(&format.simple(&table));
+                r.content.push_str(&format.simple(&table.content));
+                r.images.extend(table.images);
             } else {
-                r.push_str(
+                r.content.push_str(
                     &format.simple(&format!("Error on rendering: {}", table.err().unwrap())),
                 );
             }
         } else {
-            r.push_str(&format.simple("Empty result"));
+            r.content.push_str(&format.simple("Empty result"));
         }
     } else {
-        r.push_str(&format.simple(&format!("Query falied: {}", data.err().unwrap())));
+        r.content
+            .push_str(&format.simple(&format!("Query falied: {}", data.err().unwrap())));
     }
 
     Ok(r)
@@ -161,6 +184,7 @@ pub mod tests {
         assert_eq!(
             DataPresented {
                 is_html: false,
+                images: vec![],
                 content: r#"
 The Project Name results are here!
 
@@ -218,6 +242,7 @@ Consider support the project at https://github.com/fernandobatels/lmr
         assert_eq!(
             DataPresented {
                 is_html: false,
+                images: vec![],
                 content: r#"
 The Project Name results are here!
 
@@ -267,6 +292,7 @@ Consider support the project at https://github.com/fernandobatels/lmr
         assert_eq!(
             DataPresented {
                 is_html: false,
+                images: vec![],
                 content: r#"
 The Project Name results are here!
 
@@ -342,6 +368,7 @@ Consider support the project at https://github.com/fernandobatels/lmr
         assert_eq!(
             DataPresented {
                 is_html: false,
+                images: vec![],
                 content: r#"
 The Project Name results are here!
 

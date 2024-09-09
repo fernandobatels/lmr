@@ -1,7 +1,7 @@
 //! Table component
 
-use super::formats::OutputFormat;
 use super::Component;
+use super::{formats::OutputFormat, RenderedContent};
 use crate::{
     source::Query,
     value::{TypedValue, Value},
@@ -20,7 +20,7 @@ impl Component for TableComponent {
         query: Query,
         rows: Vec<Vec<Value>>,
         format: OutputFormat,
-    ) -> Result<String, String> {
+    ) -> Result<RenderedContent, String> {
         let mut btable = Builder::default();
 
         btable.push_record(
@@ -56,7 +56,10 @@ impl Component for TableComponent {
             OutputFormat::Markdown => btable.build().with(Style::markdown()).to_string(),
         };
 
-        Ok(table)
+        Ok(RenderedContent {
+            content: table,
+            images: vec![],
+        })
     }
 }
 
@@ -78,7 +81,7 @@ impl HtmlVisitorMut for HtmlTableClasses {
 pub mod tests {
     use super::TableComponent;
     use crate::presentation::formats::OutputFormat;
-    use crate::presentation::Component;
+    use crate::presentation::{Component, RenderedContent};
     use crate::source::Query;
     use crate::value::{Field, FieldType, TypedValue, Value};
 
@@ -128,14 +131,17 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Plain);
 
         assert_eq!(
-            Ok(r#"+-----------+-----+
+            Ok(RenderedContent {
+                content: r#"+-----------+-----+
 | User name | Age |
 +-----------+-----+
 | john.abc  | 30  |
 +-----------+-----+
 | jane.abc  | 25  |
 +-----------+-----+"#
-                .to_string()),
+                    .to_string(),
+                images: vec![]
+            }),
             result
         );
     }
@@ -186,11 +192,14 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Markdown);
 
         assert_eq!(
-            Ok(r#"| User name | Age |
+            Ok(RenderedContent {
+                images: vec![],
+                content: r#"| User name | Age |
 |-----------|-----|
 | john.abc  | 30  |
 | jane.abc  | 25  |"#
-                .to_string()),
+                    .to_string()
+            }),
             result
         );
     }
@@ -241,7 +250,9 @@ pub mod tests {
         let result = table.render(query, data, OutputFormat::Html);
 
         assert_eq!(
-            Ok(r#"<table class="lmr-table">
+            Ok(RenderedContent {
+                images: vec![],
+                content: r#"<table class="lmr-table">
     <thead>
         <tr>
             <th>
@@ -295,7 +306,8 @@ pub mod tests {
         </tr>
     </tbody>
 </table>"#
-                .to_string()),
+                    .to_string()
+            }),
             result
         );
     }

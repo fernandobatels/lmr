@@ -24,7 +24,10 @@ pub async fn to_stdout(dt: &DataPresented) -> Result<(), String> {
 
     for img in &dt.images {
         let img64 = STANDARD.encode(&img.data);
-        content = content.replace(&format!("cid:{}", img.cid), &format!("data:{};base64,{}", img.mime, img64));
+        content = content.replace(
+            &format!("cid:{}", img.cid),
+            &format!("data:{};base64,{}", img.mime, img64),
+        );
     }
 
     println!("{}", content);

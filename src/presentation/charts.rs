@@ -2,7 +2,7 @@
 
 use super::{formats::OutputFormat, Component, ImagePresented, RenderedContent};
 use crate::{source::Query, value::Value};
-use charts_rs::{BarChart, Box, LineChart, PieChart, Series, self};
+use charts_rs::{self, BarChart, Box, LineChart, PieChart, Series};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -34,6 +34,7 @@ impl ChartComponent {
     pub fn prepare_series(
         &self,
         query: &Query,
+        keys: &Vec<String>,
         data: &Vec<Vec<Value>>,
     ) -> Result<Vec<Series>, String> {
         if self.series.is_none() && self.series_by.is_none() {
@@ -60,6 +61,11 @@ impl ChartComponent {
         }
 
         if let Some(series_by) = self.series_by.clone() {
+            if self.keys_by.is_none() {
+                return Err("Keys must be defined".to_string());
+            }
+            let keys_by = self.keys_by.clone().unwrap();
+
             let mut dseries = vec![];
             for row in data {
                 let serie = get_key_by(series_by.key.clone(), row)?;
@@ -70,15 +76,21 @@ impl ChartComponent {
             }
 
             for serie in dseries {
-                let mut values = vec![];
+                let mut values: Vec<(String, f32)> =
+                    keys.iter().map(|k| (k.clone(), 0.0)).collect();
                 for row in data {
-                    let key = get_key_by(series_by.key.clone(), row)?;
-                    if key == serie {
+                    let serie_key = get_key_by(series_by.key.clone(), row)?;
+                    if serie_key == serie {
                         let value = get_value_by(series_by.values.clone(), row)?;
-                        values.push(value);
+                        let key = get_key_by(keys_by.clone(), row)?;
+
+                        if let Some(v) = values.iter_mut().find(|(k, _)| k == &key) {
+                            *v = (key, value);
+                        }
                     }
                 }
-                series.push(Series::new(serie, values));
+
+                series.push(Series::new(serie, values.iter().map(|(_, v)| *v).collect()));
             }
         }
 
@@ -121,9 +133,8 @@ impl Component for ChartComponent {
             return Err("Output format without chart support".to_string());
         }
 
-        let series = self.prepare_series(&query, &data)?;
-
         let keys = self.prepare_keys(&query, &data)?;
+        let series = self.prepare_series(&query, &keys, &data)?;
 
         let margin = Box {
             top: 10.0,
@@ -151,7 +162,8 @@ impl Component for ChartComponent {
         }
         .map_err(|e| format!("Error generating chart: {}", e))?;
 
-        let png = charts_rs::svg_to_png(&svg).map_err(|e| format!("Error converting SVG to PNG: {}", e))?;
+        let png = charts_rs::svg_to_png(&svg)
+            .map_err(|e| format!("Error converting SVG to PNG: {}", e))?;
 
         let cid = Uuid::new_v4().to_string();
 
@@ -519,7 +531,11 @@ pub mod tests {
             series: Some(vec!["age".to_string()]),
         };
 
-        let result = chart.prepare_series(&query, &data);
+        let result = chart.prepare_series(
+            &query,
+            &vec!["john.abc".to_string(), "jane.abc".to_string()],
+            &data,
+        );
         assert!(result.is_ok());
         let series = result.unwrap();
 
@@ -580,15 +596,19 @@ pub mod tests {
             series: None,
         };
 
-        let result = chart.prepare_series(&query, &data);
+        let result = chart.prepare_series(
+            &query,
+            &vec!["john.abc".to_string(), "jane.abc".to_string()],
+            &data,
+        );
         assert!(result.is_ok());
         let series = result.unwrap();
 
         assert_eq!(series.len(), 2);
         assert_eq!(series[0].name, "john.abc");
-        assert_eq!(series[0].data, vec![30.0]);
+        assert_eq!(series[0].data, vec![30.0, 0.0]);
         assert_eq!(series[1].name, "jane.abc");
-        assert_eq!(series[1].data, vec![25.0]);
+        assert_eq!(series[1].data, vec![0.0, 25.0]);
     }
 
     #[test]
@@ -640,7 +660,11 @@ pub mod tests {
             series: None,
         };
 
-        let result = chart.prepare_series(&query, &data);
+        let result = chart.prepare_series(
+            &query,
+            &vec!["john.abc".to_string(), "jane.abc".to_string()],
+            &data,
+        );
         assert_eq!(Err("Series must be defined".to_string()), result);
     }
 

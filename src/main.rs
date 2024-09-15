@@ -1,5 +1,5 @@
 /// lmr - Lightweight email report tool
-use clap::Parser;
+use clap::{crate_authors, Parser};
 use clap_verbosity_flag::{InfoLevel, Verbosity};
 use log::*;
 use simplelog::*;
@@ -13,9 +13,19 @@ mod value;
 
 use config::Config;
 
-/// lmr - Lightweight email report tool
 #[derive(Parser, Debug)]
-#[command(version, about, author)]
+#[command(help_template = "\
+{before-help}lmr {version}
+Lightweight email report tool
+
+{author}
+https://github.com/fernandobatels/lmr
+
+{usage-heading} {usage}
+
+{all-args}{after-help}")]
+#[command(version)]
+#[command(author = crate_authors!())]
 struct Args {
     /// Yaml config file
     pub config: String,
